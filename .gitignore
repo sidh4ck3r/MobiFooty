@@ -1,0 +1,4 @@
+# Secrets & local machine overrides — never commit
+config.local.php
+.env
+*.log

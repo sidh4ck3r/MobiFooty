@@ -1,0 +1,21 @@
+# Mobifooty — keep secrets out of the web root.
+# config.php and includes/ are only meant to be required()'d by /api scripts.
+
+<Files "config.php">
+    Require all denied
+</Files>
+
+<Files "config.local.php">
+    Require all denied
+</Files>
+
+<FilesMatch "^\.(htaccess|env)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Block anything under /includes and /database from direct HTTP access.
+    RewriteRule ^includes/ - [F,L]
+    RewriteRule ^database/ - [F,L]
+</IfModule>

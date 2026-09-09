@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobifooty — Screenshot-to-Prediction</title>
+    <style>
+        /* ============================================================
+           MOBIFOOTY — Instantfoot palette (no external libraries)
+           ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #050505;
+            --surface: #111111;
+            --surface-variant: #1a1a1a;
+            --border: #2a2a2a;
+            --text: #f0f0f0;
+            --text-secondary: #9e9e9e;
+            --primary: #ff2a2a; /* Vivid red */
+            --primary-dim: rgba(255, 42, 42, 0.15);
+            --secondary: #ffffff; /* White accent */
+            --secondary-dim: rgba(255, 255, 255, 0.1);
+            --error: #ff5252;
+            --error-dim: rgba(255,82,82,0.15);
+            --blue: #448aff;
+            --blue-dim: rgba(68,138,255,0.15);
+            --gray: #90a4ae;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Animations */
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translateY(12px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            background: rgba(17, 17, 17, 0.85);
+            backdrop-filter: blur(12px);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            flex-wrap: wrap;
+        }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .logo { font-size: 20px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
+        .logo .sub { font-size: 11px; color: var(--text-secondary); font-weight: 500; display: block; letter-spacing: 0; text-transform: none; }
+
+        .nav-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+        .nav-tab {
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .nav-tab:hover { background: var(--surface-variant); color: var(--text); }
+        .nav-tab.active { background: var(--primary-dim); color: var(--primary); box-shadow: inset 0 -2px 0 var(--primary); }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid var(--primary-dim);
+            color: var(--primary);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .live-badge.muted { background: transparent; border-color: var(--border); color: var(--text-secondary); }
+        .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: pulse 2s infinite; }
+        .live-dot.dim { background: var(--text-secondary); animation: none; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+
+        .app { max-width: 1080px; margin: 0 auto; padding: 24px 16px 80px; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 42, 42, 0.04);
+            border-color: rgba(255, 42, 42, 0.2);
+        }
+        .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+        .card-header .icon { font-size: 18px; }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+        }
+        .btn-primary { 
+            background: linear-gradient(135deg, var(--primary), #cc0000); 
+            color: #fff; 
+            box-shadow: 0 4px 12px rgba(255, 42, 42, 0.25);
+        }
+        .btn-primary:hover { 
+            background: linear-gradient(135deg, #ff4d4d, #e60000); 
+            box-shadow: 0 6px 16px rgba(255, 42, 42, 0.4); 
+            transform: translateY(-1px);
+        }
+        .btn-primary:active { transform: translateY(1px); box-shadow: 0 2px 8px rgba(255, 42, 42, 0.2); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        .btn-danger { background: var(--error); color: #fff; }
+        .btn-danger:hover { background: #ff1744; }
+        .btn-ghost { background: var(--surface-variant); color: var(--text); }
+        .btn-ghost:hover { background: var(--border); }
+        .btn-lg { padding: 14px 28px; font-size: 16px; border-radius: 12px; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        .input-group { margin-bottom: 12px; }
+        .input-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input-field {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface-variant);
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .input-field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-dim); }
+
+        .empty-state { text-align: center; padding: 48px 24px; color: var(--text-secondary); }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.8; }
+
+        .progress-bar { height: 6px; background: var(--surface-variant); border-radius: 3px; overflow: hidden; margin: 4px 0; }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        .confidence { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+        .conf-high { background: var(--primary-dim); color: var(--primary); }
+        .conf-med { background: var(--secondary-dim); color: var(--secondary); }
+        .conf-low { background: var(--error-dim); color: var(--error); }
+
+        /* ============ RESPONSIBLE-GAMING NOTE ============ */
+        .resp-note {
+            background: var(--surface-variant);
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-top: 12px;
+        }
+        .resp-note strong { color: var(--text); font-weight: 700; }
+        .resp-note a { color: var(--primary); cursor: pointer; text-decoration: underline; }
+
+
+        /* ============ TIERS ============ */
+        .tiers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+        .tier-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: transform 0.3s ease, border-color 0.3s, box-shadow 0.3s;
+        }
+        .tier-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(255, 42, 42, 0.05); }
+        .tier-card.recommended { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary-dim); }
+        .tier-card.current { border-color: var(--secondary); }
+        .tier-badge {
+            position: absolute; top: -10px; right: 12px;
+            font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+            padding: 3px 8px; border-radius: 6px;
+            text-transform: uppercase;
+        }
+        .tier-badge.reco { background: var(--primary); color: #fff; }
+        .tier-badge.cur { background: var(--secondary); color: #000; }
+        .tier-name { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .tier-price { font-size: 28px; font-weight: 800; color: var(--primary); margin: 6px 0 2px; }
+        .tier-price .cur { font-size: 14px; color: var(--text-secondary); font-weight: 600; }
+        .tier-tagline { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+        .tier-features { list-style: none; margin: 0 0 16px; flex: 1; }
+        .tier-features li { font-size: 13px; padding: 5px 0; color: var(--text); display: flex; gap: 8px; }
+        .tier-features li::before { content: '✓'; color: var(--primary); font-weight: 800; }
+        .tier-card.current .tier-features li::before { color: var(--secondary); }
+
+        /* ============ PROGRESS TO NEXT TIER ============ */
+        .next-tier-track {
+            background: var(--surface-variant);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-top: 14px;
+        }
+        .next-tier-track .row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+        .next-tier-track .row .lbl { color: var(--text-secondary); }
+        .next-tier-track .row .val { color: var(--primary); font-weight: 700; }
+
+        /* ============ NETWORK BADGE ============ */
+        .network-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 6px;
+            font-size: 12px; font-weight: 700;
+            background: var(--surface-variant); color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .network-badge.mtn { border-color: #ffcc00; color: #ffcc00; }
+        .network-badge.vod { border-color: #ff2a2a; color: #ff2a2a; }
+        .network-badge.atl { border-color: #f27d0a; color: #f2a35e; }
+
+        /* ============ PAYMENT STATES ============ */
+        .pay-state { text-align: center; padding: 24px 12px; }
+        .pay-state .big-icon { font-size: 44px; margin-bottom: 10px; }
+        .spinner {
+            width: 26px; height: 26px; margin: 0 auto 12px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .pulse-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--primary); animation: pulse 1.2s infinite; margin: 0 auto 10px; }
+
+        /* ============ UPLOAD / ANALYSIS ============ */
+        .dropzone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--surface);
+        }
+        .dropzone:hover, .dropzone.drag { border-color: var(--primary); background: rgba(255, 42, 42, 0.05); transform: scale(1.02); }
+        .dropzone .dz-icon { font-size: 40px; margin-bottom: 8px; transition: transform 0.3s; }
+        .dropzone:hover .dz-icon { transform: translateY(-5px); }
+        .dropzone .dz-hint { font-size: 13px; color: var(--text-secondary); }
+        .analysis-progress { text-align: center; padding: 32px 16px; }
+        .analysis-progress .stage { font-size: 18px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .analysis-progress .stage.warn { color: var(--primary); animation: pulse 2s infinite; }
+        .analysis-progress .pct { font-size: 48px; font-weight: 800; color: var(--primary); margin: 8px 0; }
+        .analysis-progress .sub { font-size: 12px; color: var(--text-secondary); }
+        .terminal-line { font-family: 'Courier New', monospace; font-size: 12px; color: var(--primary); opacity: 0.9; }
+
+        /* ============ RESULTS GRID (SportyBet-style) ============ */
+        .league-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .league-tab {
+            padding: 7px 14px; border-radius: 8px 8px 0 0;
+            background: var(--surface-variant); border: 1px solid var(--border); border-bottom: none;
+            color: var(--text-secondary); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+        .league-tab.active { background: var(--primary-dim); color: var(--primary); border-color: var(--primary); }
+        .league-tab:hover:not(.active) { color: var(--text); background: var(--border); }
+        .grid-head, .grid-row {
+            display: grid;
+            grid-template-columns: minmax(180px, 1.6fr) 64px 64px 64px 72px 72px 120px 100px;
+            gap: 4px; align-items: center;
+            padding: 8px 10px; font-size: 13px;
+        }
+        .grid-head { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; background: var(--surface-variant); border-radius: 8px 8px 0 0; font-weight: 700; }
+        .grid-row { border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.2s; }
+        .grid-row:hover { background: var(--surface-variant); }
+        .grid-row:last-child { border-radius: 0 0 8px 8px; border-bottom: none; }
+        .grid-row .teams { display: flex; flex-direction: column; gap: 2px; }
+        .grid-row .teams .home { color: var(--text); font-weight: 700; }
+        .grid-row .teams .away { color: var(--text-secondary); font-size: 12px; }
+        .grid-row .teams .away::before { content: 'vs '; opacity: 0.6; }
+        .cell { text-align: center; padding: 6px 2px; border-radius: 6px; font-weight: 700; transition: transform 0.2s; }
+        .cell:hover { transform: scale(1.05); }
+        .cell.odds { background: var(--surface-variant); color: var(--text); }
+        .cell.pick {
+            background: var(--primary);
+            border: 1px solid #cc0000;
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(255, 42, 42, 0.3);
+        }
+        .cell.pick .tag { display: block; font-size: 9px; letter-spacing: 0.5px; opacity: 0.9; text-transform: uppercase; }
+        .cell.model {
+            background: #1e1e1e;
+            color: #ff4d4d;
+            border: 1px solid #330000;
+            font-size: 12px;
+        }
+        .cell.model .pct { display: block; font-size: 15px; font-weight: 800; }
+        .cell.model .lbl { font-size: 9px; letter-spacing: 0.4px; opacity: 0.7; }
+        .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin-top: 10px; }
+        .legend .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+
+        /* ============ HISTORY ============ */
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; text-align: center; }
+        .stat-item { background: var(--surface-variant); border-radius: 10px; padding: 12px 8px; }
+        .stat-value { font-size: 22px; font-weight: 800; }
+        .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+        .bet-row { display: grid; grid-template-columns: 1fr auto auto auto auto auto auto; gap: 10px; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .bet-row:last-child { border-bottom: none; }
+        .result-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+        .res-won { background: var(--primary-dim); color: var(--primary); }
+        .res-lost { background: var(--error-dim); color: var(--error); }
+        .res-pending { background: var(--secondary-dim); color: var(--secondary); }
+
+        .sub-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+        .sub-tab {
+            padding: 6px 14px; border-radius: 8px;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .sub-tab.active { background: var(--primary-dim); color: var(--primary); border-color: var(--primary); }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--surface-variant); border: 1px solid var(--primary);
+            color: var(--text); padding: 12px 20px; border-radius: 10px;
+            font-size: 14px; z-index: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            display: none; max-width: 90vw;
+        }
+        .toast.err { border-color: var(--error); }
+        .toast.show { display: block; animation: pulse 3s 1; }
+
+        .paywall-banner {
+            background: var(--primary-dim);
+            border: 1px solid rgba(0,230,118,0.3);
+            border-radius: 12px;
+            padding: 16px 18px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .paywall-banner .price { font-size: 20px; font-weight: 800; color: var(--primary); }
+
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center; z-index: 300; padding: 16px;
+        }
+        .modal-backdrop.show { display: flex; }
+        .modal {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 14px; max-width: 440px; width: 100%;
+            padding: 22px; max-height: 88vh; overflow-y: auto;
+        }
+        .modal h3 { margin-bottom: 14px; }
+
+        .hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+        .muted { color: var(--text-secondary); }
+        .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .mt { margin-top: 12px; } .mt-0 { margin-top: 0; } .mb { margin-bottom: 12px; }
+        .text-center { text-align: center; }
+        
+        /* ============ LANDING PAGE SECTIONS ============ */
+        .lp-section { padding: 80px 24px; max-width: 1080px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+        .lp-section:last-child { border-bottom: none; }
+        .lp-section h2 { font-size: 32px; font-weight: 800; margin-bottom: 24px; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+        .lp-section p { font-size: 16px; color: var(--text-secondary); line-height: 1.6; text-align: center; max-width: 600px; margin: 0 auto 32px; }
+        
+        .hero { padding: 120px 24px 80px; background: var(--bg); overflow: hidden; }
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 40px;
+            align-items: center;
+            max-width: 1080px;
+            margin: 0 auto;
+            text-align: left;
+        }
+        .hero-content h1 { font-size: 56px; font-weight: 900; line-height: 1.1; margin-bottom: 24px; text-transform: uppercase; letter-spacing: 2px; }
+        .hero-content h1 span { color: var(--primary); }
+        .hero-content p { font-size: 18px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 40px; max-width: 500px; }
+        .phone-mockup-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .phone-mockup {
+            position: relative;
+            width: 280px;
+            height: 560px;
+            margin: 0 auto;
+            border: 12px solid #222;
+            border-radius: 40px;
+            background: #000;
+            box-shadow: 0 30px 60px rgba(255, 42, 42, 0.2), inset 0 0 0 4px #111;
+            overflow: hidden;
+            transform: rotateY(-15deg) rotateX(5deg);
+            animation: floatPhone 6s ease-in-out infinite;
+        }
+        .phone-mockup::before {
+            content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 120px; height: 26px; background: #222; border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; z-index: 10;
+        }
+        .phone-mockup img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        @keyframes floatPhone {
+            0%, 100% { transform: rotateY(-15deg) rotateX(5deg) translateY(0); }
+            50% { transform: rotateY(-15deg) rotateX(5deg) translateY(-20px); }
+        }
+
+        .orbit-container {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 0; height: 0;
+            z-index: -1;
+            animation: orbitContainer 15s linear infinite;
+        }
+        .orbiting-badge {
+            position: absolute;
+            top: -70px; left: -70px;
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            overflow: hidden;
+            animation: counterRotate 15s linear infinite;
+        }
+        .orbiting-badge img { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: screen; }
+        
+        @keyframes orbitContainer {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes counterRotate {
+            from { transform: translateX(220px) rotate(0deg); }
+            to { transform: translateX(220px) rotate(-360deg); }
+        }
+        .about-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 40px; }
+        .about-card { background: var(--surface); padding: 32px 24px; border-radius: 12px; border: 1px solid var(--border); text-align: center; transition: transform 0.3s; }
+        .about-card:hover { transform: translateY(-5px); border-color: rgba(255, 42, 42, 0.3); }
+        .about-card .icon { font-size: 40px; margin-bottom: 16px; display: block; }
+        .about-card h3 { font-size: 20px; font-weight: 800; margin-bottom: 12px; }
+        .about-card p { font-size: 14px; margin: 0; }
+        
+        .footer { padding: 40px 24px; text-align: center; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 14px; background: var(--surface); }
+
+        .nav-links { display: flex; gap: 24px; align-items: center; }
+        .nav-links a { color: var(--text); text-decoration: none; font-weight: 700; font-size: 14px; transition: color 0.2s; text-transform: uppercase; letter-spacing: 0.5px; }
+        .nav-links a:hover { color: var(--primary); }
+        .nav-links .app-link { color: var(--primary); background: var(--primary-dim); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--primary); }
+        .nav-links .app-link:hover { background: var(--primary); color: #fff; }
+
+        .app-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 24px; background: var(--surface); padding: 8px; border-radius: 12px; border: 1px solid var(--border); }
+
+        @media (max-width: 720px) {
+            .grid-head, .grid-row { grid-template-columns: minmax(150px, 1.4fr) 56px 56px 56px 64px 64px 96px; font-size: 12px; }
+            .bet-row { grid-template-columns: 1fr auto auto auto; }
+            .hero-grid { grid-template-columns: 1fr; text-align: center; gap: 40px; }
+            .hero-content h1 { font-size: 36px; }
+            .hero-content p { margin: 0 auto 40px; }
+            .phone-mockup { transform: perspective(800px) rotateY(0deg) rotateX(0deg); margin: 0 auto; width: 260px; height: 520px; animation: none; }
+            .nav-links { display: none; } /* Hide on mobile for simplicity, or we can use a menu */
+        }
+    </style>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left" style="cursor: pointer;" onclick="goHome()">
+        <span class="logo">⚡ Mobifooty<span class="sub">Screenshot → Prediction</span></span>
+    </div>
+    <div class="nav-links" id="landingNav">
+        <a href="#hero">Home</a>
+        <a href="#about">About AI</a>
+        <a href="#pricing">Pricing</a>
+        <button class="btn btn-ghost" onclick="showAuthModal('login')">Sign In</button>
+        <button class="btn btn-primary" onclick="showAuthModal('signup')">Get Started</button>
+    </div>
+    <div class="nav-links" id="appNav" style="display:none">
+        <button class="btn btn-ghost" onclick="signOut()">Sign Out</button>
+    </div>
+</div>
+
+<div id="landingView" style="display:none">
+    <!-- ================= HERO SECTION ================= -->
+    <section class="hero" id="hero">
+        <div class="hero-grid">
+            <div class="hero-content">
+                <h1>Transform Screenshots<br>Into <span>Predictions</span></h1>
+                <p>Upload a VGames or SportyBet odds list. Our AI Vision Engine reads the fixtures, and our advanced Poisson model calculates the true probability of every outcome.</p>
+                <button class="btn btn-primary btn-lg" onclick="showAuthModal('signup')">Start Analyzing Now</button>
+            </div>
+            <div class="phone-mockup-wrapper">
+                <div class="phone-mockup">
+                    <img src="Instant%20Vitruals.png" alt="Mobifooty Prediction Interface">
+                </div>
+                <div class="orbit-container">
+                    <div class="orbiting-badge">
+                        <img src="flaming_football_black.jpg" alt="3D Flaming Football">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= ABOUT SECTION ================= -->
+    <section class="lp-section" id="about">
+        <h2>How It Works</h2>
+        <p>We blend cutting-edge Vision AI with rigorous statistical modeling to give you an edge.</p>
+        
+        <div class="about-grid">
+            <div class="about-card">
+                <span class="icon">📸</span>
+                <h3>1. Screenshot</h3>
+                <p>Take a screenshot of the day's fixtures and odds from your bookmaker.</p>
+            </div>
+            <div class="about-card">
+                <span class="icon">🧠</span>
+                <h3>2. AI Extraction</h3>
+                <p>Our Vision model instantly extracts the teams, leagues, and betting odds.</p>
+            </div>
+            <div class="about-card">
+                <span class="icon">📊</span>
+                <h3>3. Poisson Engine</h3>
+                <p>We calculate the mathematical probability of every outcome based on team strength.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= PRICING SECTION ================= -->
+    <section class="lp-section" id="pricing">
+        <h2>Simple Pricing</h2>
+        <p>Choose a tier that fits your betting style. Upgrade or downgrade anytime.</p>
+        
+        <div class="tiers-grid" id="tiersGrid"></div>
+        <div id="nextTierTrack"></div>
+        <div class="resp-note">
+            <strong>18+ only.</strong> Prediction tools estimate probability, they do not
+            guarantee winnings. Bet responsibly and never stake money you can't afford to lose.
+        </div>
+    </section>
+
+    <!-- ================= FOOTER ================= -->
+    <footer class="footer">
+        <p>&copy; 2026 Mobifooty. All Rights Reserved.</p>
+        <p style="margin-top: 8px; font-size: 12px; opacity: 0.7;">This tool provides probabilistic estimates based on a Poisson engine. It is not financial or betting advice. 18+ only. Play responsibly.</p>
+        <p style="margin-top: 8px; font-size: 12px;"><a href="admin.php" style="color: var(--text-secondary); text-decoration: none;">Admin Portal</a></p>
+    </footer>
+</div>
+
+<div id="appView" style="display:none">
+    <!-- ================= APP SECTION ================= -->
+    <section class="lp-section" id="app" style="padding-top: 40px; border-bottom: none;">
+        
+        <div class="flex-between" style="margin-bottom: 24px;">
+            <h2>App Dashboard</h2>
+            <span class="live-badge muted" id="statusBadge"><span class="live-dot dim"></span><span id="statusText">BOOTING</span></span>
+        </div>
+
+        <div class="app-tabs" id="navTabs">
+            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+            <button class="nav-tab" data-tab="upload">Upload</button>
+            <button class="nav-tab" data-tab="results">Results</button>
+            <button class="nav-tab" data-tab="history">History</button>
+        </div>
+
+        <!-- App container for the tab panels -->
+        <div class="app-container">
+
+            <!-- ================= DASHBOARD ================= -->
+            <div class="tab-panel active" id="tab-dashboard">
+                <div id="dashSignedIn">
+            <div class="card">
+                <div class="flex-between">
+                    <div>
+                        <div style="font-size:18px;font-weight:700" id="dashGreeting">Welcome</div>
+                        <div class="muted" style="font-size:13px" id="dashPhone">—</div>
+                    </div>
+                    <div id="dashTierBadge"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span class="icon">🎟️</span> Your tier</div>
+                <div id="dashTierPanel"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span class="icon">📈</span> Quick stats</div>
+                <div class="stat-grid" id="dashStats"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span class="icon">🛡️</span> Responsible gaming</div>
+                <p style="font-size:13px;color:var(--text-secondary)">
+                    No prediction is a guarantee. Stake only what you can afford to lose.
+                    If betting stops being fun, set a self-exclusion period — payments and
+                    analyses are paused immediately.
+                </p>
+                <div class="mt flex">
+                    <button class="btn btn-ghost btn-sm" onclick="openSelfExclude()">Set self-exclusion</button>
+                    <span id="dashSelfExcludeState" class="muted" style="font-size:12px"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= UPLOAD ================= -->
+    <div class="tab-panel" id="tab-upload">
+        <div id="uploadPaywall"></div>
+
+        <div class="card" id="uploadCard">
+            <div class="card-header"><span class="icon">📸</span> Upload VGames screenshot</div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
+                Screenshot the odds list from your betting app (VGames, SportyBet, Betway…).
+                We read the league, fixtures and bookmaker odds, then run them through the
+                Poisson model. <strong>Bookmaker odds and model probability are shown as
+                separate numbers — never blended.</strong>
+            </p>
+            <div id="uploadZone">
+                <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+                    <div class="dz-icon">🖼️</div>
+                    <div style="font-weight:600;margin-bottom:4px">Drop a screenshot here or tap to browse</div>
+                    <div class="dz-hint">PNG or JPG · max 8 MB · odds list from VGames / SportyBet</div>
+                </div>
+                <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" style="display:none">
+            </div>
+            <div id="uploadPreview" style="display:none;margin-top:12px"></div>
+            <div class="mt flex" id="uploadActions" style="display:none">
+                <button class="btn btn-primary" onclick="runAnalysis()">⚡ Start AI Analysis</button>
+                <button class="btn btn-ghost" onclick="resetUpload()">Change screenshot</button>
+            </div>
+        </div>
+
+        <div class="card" id="analysisCard" style="display:none">
+            <div class="analysis-progress">
+                <div class="stage" id="analysisStage">Reading Screenshot…</div>
+                <div class="pct" id="analysisPct">0%</div>
+                <div class="progress-bar" style="max-width:420px;margin:0 auto"><div class="progress-fill" id="analysisBar" style="width:0%;background:var(--primary)"></div></div>
+                <div class="sub mt" id="analysisSub">Extracting league, fixtures and bookmaker odds</div>
+                <div class="terminal-line mt" id="analysisLog" style="min-height:18px"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= RESULTS ================= -->
+    <div class="tab-panel" id="tab-results">
+        <div class="card" id="resultsCard">
+            <div class="card-header"><span class="icon">⚽</span> Model picks &amp; bookmaker odds</div>
+            <div id="resultsMeta" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px"></div>
+            <div class="league-tabs" id="leagueTabs"></div>
+            <div id="resultsGrid"><div class="empty-state"><div class="icon">📋</div><p>No analysis yet — upload a screenshot on the Upload tab.</p></div></div>
+            <div class="legend">
+                <span><span class="sw" style="background:var(--surface-variant)"></span>Bookmaker odds (from your screenshot)</span>
+                <span><span class="sw" style="background:var(--blue)"></span>Model probability (Poisson) — shown separately</span>
+                <span><span class="sw" style="background:var(--primary)"></span>Model's pick for that fixture</span>
+            </div>
+            <div class="resp-note">
+                <strong>Not a guarantee.</strong> Model picks are probability-based estimates with
+                no certainty of outcome. Always stake responsibly.
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= HISTORY ================= -->
+    <div class="tab-panel" id="tab-history">
+        <div class="card">
+            <div class="card-header"><span class="icon">🧾</span> Track record</div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">
+                Log the bets you placed following the picks so the record speaks for itself.
+                Totals are computed from settled bets only.
+            </p>
+            <div class="stat-grid" id="historyTotals"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span class="icon">➕</span> Add a bet</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+                <div class="input-group">
+                    <div class="input-label">Type</div>
+                    <select class="input-field" id="betType">
+                        <option value="single">Single</option>
+                        <option value="multiple">Multiple</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <div class="input-label">Stake (GHS)</div>
+                    <input class="input-field" id="betStake" type="number" min="0" step="0.5" placeholder="10.00">
+                </div>
+                <div class="input-group">
+                    <div class="input-label">Total odds</div>
+                    <input class="input-field" id="betOdds" type="number" min="1.01" step="0.01" placeholder="2.30">
+                </div>
+                <div class="input-group">
+                    <div class="input-label">Result</div>
+                    <select class="input-field" id="betResult">
+                        <option value="pending">Unsettled</option>
+                        <option value="won">Won</option>
+                        <option value="lost">Lost</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <div class="input-label">Date placed</div>
+                    <input class="input-field" id="betDate" type="date">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="addBet()">+ Add bet</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span class="icon">📋</span> Bets</div>
+            <div class="sub-tabs">
+                <button class="sub-tab active" data-filter="all" onclick="setBetFilter('all', this)">All</button>
+                <button class="sub-tab" data-filter="settled" onclick="setBetFilter('settled', this)">Settled</button>
+                <button class="sub-tab" data-filter="unsettled" onclick="setBetFilter('unsettled', this)">Unsettled</button>
+            </div>
+            <div id="betsList"><div class="empty-state"><p>No bets logged yet.</p></div></div>
+        </div>
+        </div>
+    </div>
+</section>
+</div>
+
+<!-- ================= AUTH MODAL ================= -->
+<div class="modal-backdrop" id="authModalBackdrop">
+    <div class="modal">
+        <h3 id="authTitle">Sign In</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px" id="authSubtitle">
+            Welcome back! Enter your mobile-money number to continue.
+        </p>
+        <div class="input-group">
+            <div class="input-label">Mobile Money Number</div>
+            <input class="input-field" id="signupPhone" inputmode="numeric" placeholder="0241234567" maxlength="12">
+        </div>
+        <div class="input-group" id="authNameGroup" style="display:none">
+            <div class="input-label">Full Name</div>
+            <input class="input-field" id="signupName" placeholder="e.g. Kwame Asante">
+        </div>
+        <div class="input-group" id="authEmailGroup" style="display:none">
+            <div class="input-label">Email Address</div>
+            <input class="input-field" type="email" id="signupEmail" placeholder="e.g. kwame@gmail.com">
+        </div>
+        <div id="signupNetwork" style="margin-bottom:12px"></div>
+        <button class="btn btn-primary btn-lg" style="width:100%" id="authBtn" onclick="signIn()">Sign In</button>
+        <div class="text-center mt" style="font-size:13px;color:var(--text-secondary)">
+            <span id="authToggleText">Don't have an account?</span>
+            <a style="color:var(--primary);cursor:pointer;font-weight:600" onclick="toggleAuthMode()" id="authToggleLink">Sign Up</a>
+        </div>
+        <button class="btn btn-ghost mt" style="width:100%" onclick="closeModal('authModalBackdrop')">Cancel</button>
+    </div>
+</div>
+
+<!-- ================= PAYMENT MODAL ================= -->
+<div class="modal-backdrop" id="paymentModalBackdrop">
+    <div class="modal" id="paymentModal">
+        <div id="paymentStepTier">
+            <h3 id="payTierTitle">Pay with Mobile Money</h3>
+            <div class="flex-between" style="background:var(--surface-variant);border-radius:10px;padding:12px;margin-bottom:14px">
+                <div>
+                    <div style="font-weight:700" id="payTierName">—</div>
+                    <div class="muted" style="font-size:12px" id="payTierFeatures"></div>
+                </div>
+                <div style="font-size:24px;font-weight:800;color:var(--primary)" id="payTierPrice">—</div>
+            </div>
+            <div class="input-group">
+                <div class="input-label">Add your Mobile Money number</div>
+                <input class="input-field" id="payPhone" inputmode="numeric" placeholder="0241234567" maxlength="12">
+            </div>
+            <div id="payNetwork" style="margin-bottom:14px"></div>
+            <button class="btn btn-primary btn-lg" style="width:100%" id="payBtn" onclick="startPayment()">💳 Pay now</button>
+            <div class="resp-note">
+                <strong>18+ · Stake responsibly.</strong> You're buying access to probability-based
+                predictions — not guaranteed wins. Payment is processed by our licensed aggregator
+                (Paystack) and your tier unlocks only after the payment is confirmed on their side.
+                <a onclick="openSelfExclude()">Self-exclusion is available anytime.</a>
+            </div>
+        </div>
+
+        <div id="paymentStepPending" style="display:none">
+            <div class="pay-state">
+                <div class="pulse-dot"></div>
+                <div style="font-size:18px;font-weight:700">Waiting for your approval…</div>
+                <p class="muted mt" style="font-size:13px" id="payPendingMsg">A payment prompt was sent to your phone.</p>
+                <p class="muted" style="font-size:12px" id="payPendingRef"></p>
+                <div class="progress-bar mt"><div class="progress-fill" id="payPendingBar" style="width:0%;background:var(--primary)"></div></div>
+                <p class="muted" style="font-size:12px;margin-top:10px" id="payPendingHelp">Confirm the prompt on your phone to unlock your tier.</p>
+                <p class="muted" style="font-size:12px;margin-top:8px;color:#ffaa00" id="payPendingFallback"><strong>Note:</strong> If the prompt does not appear, dial <strong>*170#</strong>, select Option 6 (My Wallet) &rarr; Option 3 (My Approvals) to approve.</p>
+                
+                <div id="payOtpContainer" style="display:none;margin-top:20px;text-align:left">
+                    <div class="input-label">Enter SMS OTP</div>
+                    <div style="display:flex;gap:10px">
+                        <input class="input-field" type="text" id="payOtpInput" placeholder="123456" style="flex:1">
+                        <button class="btn btn-primary" onclick="submitOtp()" id="payOtpBtn">Verify</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="paymentStepSuccess" style="display:none">
+            <div class="pay-state">
+                <div class="big-icon">✅</div>
+                <div style="font-size:18px;font-weight:700;color:var(--primary)">Payment confirmed</div>
+                <p class="muted mt" style="font-size:13px" id="paySuccessMsg">Your tier is now active.</p>
+                <button class="btn btn-primary btn-lg mt" onclick="closePaymentAndGo('upload')">Upload a screenshot →</button>
+            </div>
+        </div>
+
+        <div id="paymentStepFailed" style="display:none">
+            <div class="pay-state">
+                <div class="big-icon">❌</div>
+                <div style="font-size:18px;font-weight:700;color:var(--error)">Payment failed</div>
+                <p class="muted mt" style="font-size:13px" id="payFailMsg">No money was taken. Try again or use a different number.</p>
+                <button class="btn btn-ghost mt" onclick="resetPaymentUI()">← Try again</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= SELF-EXCLUSION MODAL ================= -->
+<div class="modal-backdrop" id="selfExcludeBackdrop">
+    <div class="modal">
+        <h3>🛡️ Self-exclusion</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">
+            During self-exclusion, all purchases and analyses are paused. This cannot be
+            cancelled before the period ends (minimum 7 days).
+        </p>
+        <div class="input-group">
+            <div class="input-label">Period</div>
+            <select class="input-field" id="selfExcludeDays">
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="365">1 year</option>
+            </select>
+        </div>
+        <div class="flex">
+            <button class="btn btn-danger" onclick="doSelfExclude()">Exclude me</button>
+            <button class="btn btn-ghost" onclick="closeModal('selfExcludeBackdrop')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   MOBIFOOTY — SPA logic (vanilla JS, no external libraries)
+   ============================================================ */
+
+/* ---------- Poisson engine (the existing Instantfoot engine) ---------- */
+const PoissonEngine = {
+    poissonProbability(k, lambda) {
+        if (lambda <= 0) return k === 0 ? 1 : 0;
+        return Math.exp(-lambda + k * Math.log(lambda) - this.logFactorial(k));
+    },
+    logFactorial(n) {
+        let sum = 0;
+        for (let i = 2; i <= n; i++) sum += Math.log(i);
+        return sum;
+    },
+    calculateExpectedGoals(attack, defense, leagueAvg = 2.7, homeAdv = 0) {
+        const attackFactor = attack / 5.0;
+        const defenseFactor = defense / 5.0;
+        return Math.max(0.1, Math.min(5.0, leagueAvg * attackFactor * (1 - defenseFactor * 0.3) + homeAdv));
+    },
+    scoreMatrix(homeXG, awayXG, maxGoals = 7) {
+        const matrix = [];
+        for (let i = 0; i <= maxGoals; i++) {
+            matrix[i] = [];
+            for (let j = 0; j <= maxGoals; j++) {
+                matrix[i][j] = this.poissonProbability(i, homeXG) * this.poissonProbability(j, awayXG);
+            }
+        }
+        return matrix;
+    },
+    calculate1X2(matrix) {
+        let home = 0, draw = 0, away = 0;
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < matrix[i].length; j++) {
+                if (i > j) home += matrix[i][j];
+                else if (i === j) draw += matrix[i][j];
+                else away += matrix[i][j];
+            }
+        }
+        return { home, draw, away };
+    },
+    calculateOverUnder(matrix) {
+        const result = {};
+        for (const t of [0.5, 1.5, 2.5, 3.5]) {
+            let over = 0;
+            for (let i = 0; i < matrix.length; i++)
+                for (let j = 0; j < matrix[i].length; j++)
+                    if (i + j > t) over += matrix[i][j];
+            result[`over${t}`] = over;
+            result[`under${t}`] = 1 - over;
+        }
+        return result;
+    },
+    calculateGG(matrix) {
+        let gg = 0;
+        for (let i = 1; i < matrix.length; i++)
+            for (let j = 1; j < matrix[i].length; j++)
+                gg += matrix[i][j];
+        return { gg, ng: 1 - gg };
+    },
+    predictMatch(homeTeam, awayTeam) {
+        const homeXG = this.calculateExpectedGoals(homeTeam.attack, awayTeam.defense, 2.7, 0.15);
+        const awayXG = this.calculateExpectedGoals(awayTeam.attack, homeTeam.defense);
+        const matrix = this.scoreMatrix(homeXG, awayXG);
+        const { home, draw, away } = this.calculate1X2(matrix);
+        const ou = this.calculateOverUnder(matrix);
+        const { gg, ng } = this.calculateGG(matrix);
+        return { homeXG, awayXG, homeProb: home, drawProb: draw, awayProb: away, ou, gg, ng };
+    }
+};
+
+function fairOdds(prob, margin = 0.05) {
+    if (prob <= 0) return 99;
+    return Math.max(1.01, 1 / (prob * (1 + margin)));
+}
+
+/* Bookmaker odds -> implied strengths (same approach as Instantfoot manual input) */
+function strengthsFromOdds(homeOdds, drawOdds, awayOdds) {
+    if (!(homeOdds > 0 && drawOdds > 0 && awayOdds > 0)) return null;
+    const hi = 1 / homeOdds, di = 1 / drawOdds, ai = 1 / awayOdds;
+    const total = hi + di + ai;
+    const hs = (hi / total) * 5, as = (ai / total) * 5;
+    return {
+        home: { attack: hs + 0.5, defense: 5 - hs },
+        away: { attack: as + 0.5, defense: 5 - as }
+    };
+}
+
+/* ---------- App state ---------- */
+let APP = {
+    config: null,
+    user: null,
+    analysis: null,        // { analysis_id, league, fixtures, simulation, provider, analyses_left_today }
+    analysisFixtures: [],  // fixtures enriched with Poisson model data
+    paymentRef: null,
+    pendingTimer: null,
+    betFilter: 'all',
+    bets: [],
+    totals: null,
+    currentLeague: 'All',
+    authMode: 'login'
+};
+
+/* ---------- Boot ---------- */
+async function init() {
+    try {
+        await fetch('api/init.php', { method: 'POST' }); // idempotent schema bootstrap
+        const [cfgRes, userRes] = await Promise.all([fetch('api/app.php'), fetch('api/user.php')]);
+        const cfg = await cfgRes.json();
+        const usr = await userRes.json();
+        APP.config = cfg.data;
+        APP.user = usr.data.user;
+        document.getElementById('signupPhone').addEventListener('input', renderSignupNetwork);
+        document.getElementById('payPhone').addEventListener('input', renderPayNetwork);
+        setupDropzone();
+        renderAll();
+        maybeRestoreAnalysis();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentRef = urlParams.get('payment');
+        if (paymentRef && APP.user) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            APP.paymentRef = paymentRef;
+            showModal('paymentModalBackdrop');
+            enterPendingState({ reference: paymentRef, message: 'Verifying payment from Paystack...' });
+        }
+    } catch (e) {
+        toast('Failed to reach the Mobifooty API. Is Apache + MySQL running?', true);
+    }
+}
+
+async function maybeRestoreAnalysis() {
+    if (!APP.user) return;
+    try {
+        const res = await fetch('api/analysis.php?recent=1');
+        const j = await res.json();
+        if (j.success && j.data.analysis) {
+            APP.analysis = { league: j.data.analysis.league, fixtures: j.data.analysis.fixtures, simulation: j.data.analysis.simulation };
+            buildAnalysisFixtures();
+            renderResults();
+        }
+    } catch (e) { /* non-fatal */ }
+}
+
+/* ---------- Rendering ---------- */
+function renderAll() {
+    if (APP.user) {
+        document.getElementById('landingView').style.display = 'none';
+        document.getElementById('landingNav').style.display = 'none';
+        document.getElementById('appView').style.display = 'block';
+        document.getElementById('appNav').style.display = 'flex';
+    } else {
+        document.getElementById('landingView').style.display = 'block';
+        document.getElementById('landingNav').style.display = 'flex';
+        document.getElementById('appView').style.display = 'none';
+        document.getElementById('appNav').style.display = 'none';
+    }
+    
+    renderStatus();
+    renderDash();
+    renderTiers();
+    renderUpload();
+    renderResults();
+    renderHistory();
+}
+
+function renderStatus() {
+    const badge = document.getElementById('statusBadge');
+    const txt = document.getElementById('statusText');
+    if (!APP.user) {
+        badge.className = 'live-badge muted';
+        txt.textContent = 'SIGNED OUT';
+        return;
+    }
+    if (APP.user.self_excluded) {
+        badge.className = 'live-badge';
+        badge.style.background = 'var(--error-dim)';
+        badge.style.color = 'var(--error)';
+        badge.querySelector('.live-dot').style.background = 'var(--error)';
+        txt.textContent = 'SELF-EXCLUDED';
+        return;
+    }
+    badge.className = 'live-badge';
+    badge.style.background = '';
+    badge.style.color = '';
+    badge.querySelector('.live-dot').style.background = '';
+    txt.textContent = APP.user.tier_active ? (APP.user.tier.name.toUpperCase()) : 'NO TIER';
+}
+
+function renderDash() {
+    if (!APP.user) return;
+    const u = APP.user;
+    
+    document.getElementById('dashGreeting').textContent = u.name ? `Welcome back, ${u.name}` : 'Welcome back';
+    document.getElementById('dashPhone').textContent = `${u.phone} · ${networkLabel(u.network)}`;
+    document.getElementById('dashTierBadge').innerHTML = u.tier_active
+        ? `<span class="live-badge"><span class="live-dot"></span>${u.tier.name.toUpperCase()} · active</span>`
+        : `<span class="live-badge muted"><span class="live-dot dim"></span>NO ACTIVE TIER</span>`;
+
+    const panel = document.getElementById('dashTierPanel');
+    if (u.tier_active && u.tier) {
+        panel.innerHTML = `
+            <div class="flex-between">
+                <div>
+                    <div style="font-size:22px;font-weight:800;color:var(--primary)">${u.tier.name}</div>
+                    <div class="muted" style="font-size:12px">GHS ${u.tier.price_ghs} · ${tierValidity(u.tier)}</div>
+                </div>
+                <div class="text-center">
+                    <div style="font-size:26px;font-weight:800" id="dashAnalysesLeft">${u.analyses_left_today < 0 ? '∞' : u.analyses_left_today}</div>
+                    <div class="muted" style="font-size:11px">analyses left today</div>
+                </div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:10px">
+                ${u.tier.features.slice(0, 3).join(' · ')}
+            </div>
+            ${nextTierTrackHTML(u)}
+        `;
+    } else {
+        panel.innerHTML = `
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">
+                You don't have an active tier. Pick a plan to start analysing screenshots.
+            </p>
+            <button class="btn btn-primary" onclick="document.getElementById('pricing').scrollIntoView({behavior: 'smooth'})">💎 View tiers</button>
+        `;
+    }
+
+    document.getElementById('dashStats').innerHTML = `
+        <div class="stat-item"><div class="stat-value" style="color:var(--primary)">GHS ${fmt(u.lifetime_spend_ghs)}</div><div class="stat-label">Lifetime spend</div></div>
+        <div class="stat-item"><div class="stat-value" style="color:var(--blue)">${u.tier ? u.tier.name : '—'}</div><div class="stat-label">Current tier</div></div>
+        <div class="stat-item"><div class="stat-value" style="color:var(--secondary)">${u.progress_to_next ? Math.round(u.progress_to_next * 100) + '%' : '—'}</div><div class="stat-label">To next tier</div></div>
+        <div class="stat-item"><div class="stat-value">${u.transactions.length}</div><div class="stat-label">Transactions</div></div>
+    `;
+    document.getElementById('dashSelfExcludeState').textContent = u.self_excluded
+        ? `Self-excluded until ${u.self_exclude_until || '—'}`
+        : '';
+}
+
+function nextTierTrackHTML(u) {
+    if (!u.next_tier) return '';
+    const pct = Math.round(u.progress_to_next * 100);
+    return `
+        <div class="next-tier-track">
+            <div class="row">
+                <span class="lbl">Path to next tier: <strong style="color:var(--secondary)">${u.next_tier.name}</strong></span>
+                <span class="val">${pct}% · GHS ${fmt(u.lifetime_spend_ghs)} / GHS ${u.next_tier.price_ghs}</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:var(--secondary)"></div></div>
+            <div class="row mt-0" style="margin-top:6px">
+                <span class="lbl">Keep paying for ${u.next_tier.name} and your spend counts toward it</span>
+                <button class="btn btn-primary btn-sm" onclick="switchTab('tiers')">Upgrade →</button>
+            </div>
+        </div>
+    `;
+}
+
+function renderTiers() {
+    const tiers = Object.values(APP.config.tiers);
+    const order = Object.keys(APP.config.tiers);
+    const u = APP.user;
+    const currentIdx = u && u.current_tier ? order.indexOf(u.current_tier) : -1;
+    const recoIdx = u && u.tier_active ? currentIdx + 1 : 0;
+    const recoKey = recoIdx < order.length ? order[recoIdx] : null;
+
+    document.getElementById('tiersGrid').innerHTML = tiers.map(t => {
+        const isCurrent = u && u.current_tier === t.key;
+        const isReco = recoKey === t.key;
+        return `
+        <div class="tier-card ${isReco ? 'recommended' : ''} ${isCurrent ? 'current' : ''}">
+            ${isReco && !isCurrent ? '<span class="tier-badge reco">RECOMMENDED NEXT</span>' : ''}
+            ${isCurrent ? '<span class="tier-badge cur">CURRENT</span>' : ''}
+            <div class="tier-name">${t.name}</div>
+            <div class="tier-price"><span class="cur">GHS</span> ${t.price_ghs}</div>
+            <div class="tier-tagline">${t.tagline}</div>
+            <ul class="tier-features">${t.features.map(f => `<li>${f}</li>`).join('')}</ul>
+            ${isCurrent
+                ? '<button class="btn btn-ghost" style="width:100%" disabled>✓ Your current tier</button>'
+                : `<button class="btn ${isReco ? 'btn-primary' : 'btn-ghost'}" style="width:100%" onclick="openPayment('${t.key}')">Get ${t.name} · GHS ${t.price_ghs}</button>`}
+        </div>`;
+    }).join('');
+
+    document.getElementById('nextTierTrack').innerHTML = u && u.next_tier && u.tier_active
+        ? `<div class="card"><div class="card-header"><span class="icon">🧭</span> Your path to the next tier</div>${nextTierTrackHTML(u)}</div>`
+        : '';
+}
+
+function renderUpload() {
+    const u = APP.user;
+    const paywall = document.getElementById('uploadPaywall');
+    const card = document.getElementById('uploadCard');
+
+    if (!u || !u.tier_active) {
+        card.style.display = 'none';
+        const tier = APP.config.tiers.starter;
+        paywall.innerHTML = `
+            <div class="paywall-banner">
+                <div>
+                    <div style="font-weight:700">This feature needs an active tier</div>
+                    <div class="muted" style="font-size:13px">Screenshot analysis unlocks from</div>
+                </div>
+                <div class="flex">
+                    <span class="price">GHS ${tier.price_ghs}</span>
+                    <button class="btn btn-primary" onclick="openPayment('starter')">Get ${tier.name}</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><span class="icon">🔒</span> How it works</div>
+                <div style="font-size:13px;color:var(--text-secondary);line-height:1.7">
+                    1. Pick a tier and pay with MTN MoMo, Telecel Cash or AirtelTigo Money<br>
+                    2. Upload your VGames / SportyBet screenshot<br>
+                    3. The Poisson model returns probabilities — shown separately from bookmaker odds
+                </div>
+            </div>`;
+        return;
+    }
+    paywall.innerHTML = `
+        <div class="paywall-banner">
+            <div>
+                <div style="font-weight:700">${u.tier.name} tier · GHS ${u.tier.price_ghs}</div>
+                <div class="muted" style="font-size:13px">${u.analyses_left_today < 0 ? 'Unlimited analyses' : u.analyses_left_today + ' analyses left today'} · ${tierValidity(u.tier)}</div>
+            </div>
+            ${u.next_tier ? `<button class="btn btn-ghost btn-sm" onclick="openPayment('${u.next_tier.key}')">Upgrade to ${u.next_tier.name}</button>` : ''}
+        </div>`;
+    card.style.display = 'block';
+}
+
+/* ---------- Results ---------- */
+function buildAnalysisFixtures() {
+    if (!APP.analysis) return;
+    APP.analysisFixtures = APP.analysis.fixtures.map((f, idx) => {
+        const s = strengthsFromOdds(f.odds.home, f.odds.draw, f.odds.away);
+        let model = null;
+        if (s) {
+            const r = PoissonEngine.predictMatch(s.home, s.away);
+            const candidates = [
+                { label: '1', prob: r.homeProb },
+                { label: 'X', prob: r.drawProb },
+                { label: '2', prob: r.awayProb }
+            ];
+            const pick = candidates.sort((a, b) => b.prob - a.prob)[0];
+            model = {
+                homeProb: r.homeProb, drawProb: r.drawProb, awayProb: r.awayProb,
+                over25: r.ou.over25, gg: r.gg.gg,
+                pick,
+                confidence: Math.max(r.homeProb, r.drawProb, r.awayProb)
+            };
+        }
+        return { ...f, model };
+    });
+}
+
+const LEAGUE_TABS = ['All', 'England', 'Spain', 'Germany', 'Italy', 'Champions League', 'Other'];
+
+function leagueTabOf(league) {
+    const l = (league || '').toLowerCase();
+    if (l.includes('england') || l.includes('premier') || l.includes('championship')) return 'England';
+    if (l.includes('spain') || l.includes('la liga') || l.includes('españa')) return 'Spain';
+    if (l.includes('germany') || l.includes('bundesliga')) return 'Germany';
+    if (l.includes('italy') || l.includes('serie a') || l.includes('italia')) return 'Italy';
+    if (l.includes('champions')) return 'Champions League';
+    return 'Other';
+}
+
+function renderResults() {
+    const meta = document.getElementById('resultsMeta');
+    if (!APP.analysis) {
+        document.getElementById('resultsGrid').innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>No analysis yet — upload a screenshot on the Upload tab.</p></div>';
+        document.getElementById('leagueTabs').innerHTML = '';
+        meta.innerHTML = '';
+        return;
+    }
+    const a = APP.analysis;
+    meta.innerHTML = a.simulation
+        ? `<span style="color:var(--secondary)">⚠ SIMULATION MODE</span> — no vision API key configured, so this parse is a stand-in for the real AI read. League: <strong>${esc(a.league)}</strong>`
+        : `Parsed with <strong>${a.provider}</strong> vision model · League: <strong>${esc(a.league)}</strong> · ${APP.analysisFixtures.length} fixtures`;
+
+    const activeLeague = APP.analysisFixtures.some(f => leagueTabOf(f.league || a.league) === APP.currentLeague) || APP.currentLeague === 'All'
+        ? APP.currentLeague : (leagueTabOf(a.league));
+    APP.currentLeague = activeLeague;
+
+    document.getElementById('leagueTabs').innerHTML = LEAGUE_TABS.map(t => {
+        const count = t === 'All'
+            ? APP.analysisFixtures.length
+            : APP.analysisFixtures.filter(f => leagueTabOf(f.league || a.league) === t).length;
+        return `<button class="league-tab ${activeLeague === t ? 'active' : ''}" onclick="setLeague('${t}')">${t}${count ? ` <span class="muted" style="font-size:11px">(${count})</span>` : ''}</button>`;
+    }).join('');
+
+    const fixtures = APP.analysisFixtures.filter(f => {
+        if (activeLeague === 'All') return true;
+        return leagueTabOf(f.league || a.league) === activeLeague;
+    });
+
+    if (fixtures.length === 0) {
+        document.getElementById('resultsGrid').innerHTML = `<div class="empty-state"><p>No fixtures for this league in the last screenshot.</p></div>`;
+        return;
+    }
+
+    document.getElementById('resultsGrid').innerHTML = `
+        <div class="grid-head">
+            <span>Match</span><span>1</span><span>X</span><span>2</span><span>O2.5</span><span>GG</span><span>MODEL</span><span>💰 WIN</span>
+        </div>
+        ${fixtures.map(f => gridRowHTML(f)).join('')}
+    `;
+}
+
+function gridRowHTML(f) {
+    const o = f.odds;
+    const m = f.model;
+    const pickCell = (label, odds, isPick) => `
+        <span class="cell odds ${isPick ? 'pick' : ''}">${odds ? odds.toFixed(2) : '—'}${isPick ? '<span class="tag">★ PICK</span>' : ''}</span>`;
+    const pickLabel = m ? m.pick.label : null;
+    
+    // Calculate potential win: GHS 10 stake on model pick odds
+    let potentialWin = '—';
+    let potentialOdds = null;
+    if (m && pickLabel) {
+        if (pickLabel === '1') potentialOdds = o.home;
+        else if (pickLabel === 'X') potentialOdds = o.draw;
+        else if (pickLabel === '2') potentialOdds = o.away;
+    }
+    if (potentialOdds) {
+        const stake = 10;
+        const win = (stake * potentialOdds).toFixed(2);
+        const confidence = (m.pick.prob * 100).toFixed(0);
+        const rating = m.pick.prob >= 0.55 ? '🔥' : m.pick.prob >= 0.40 ? '✅' : '⚠️';
+        potentialWin = `<span class="cell" style="text-align:center;display:flex;flex-direction:column;justify-content:center"><span style="font-weight:800;color:#00e676;font-size:14px">${rating} GHS ${win}</span><span style="display:block;font-size:9px;opacity:0.7">on GHS ${stake} · ${confidence}% conf</span></span>`;
+    } else {
+        potentialWin = '<span class="cell" style="text-align:center;opacity:0.5">—</span>';
+    }
+    
+    return `
+        <div class="grid-row">
+            <div class="teams">
+                <span class="home">${esc(f.home)}</span>
+                <span class="away">${esc(f.away)}</span>
+            </div>
+            ${pickCell('1', o.home, pickLabel === '1')}
+            ${pickCell('X', o.draw, pickLabel === 'X')}
+            ${pickCell('2', o.away, pickLabel === '2')}
+            <span class="cell odds">${o.over25 ? o.over25.toFixed(2) : '—'}</span>
+            <span class="cell odds">${o.btts_yes ? o.btts_yes.toFixed(2) : '—'}</span>
+            ${m
+                ? `<span class="cell model"><span class="pct">${(m.pick.prob * 100).toFixed(0)}%</span><span class="lbl">pick ${m.pick.label} · O2.5 ${(m.over25 * 100).toFixed(0)}%</span></span>`
+                : '<span class="cell model"><span class="lbl">—</span></span>'}
+            ${potentialWin}
+        </div>`;
+}
+
+function setLeague(t) {
+    APP.currentLeague = t;
+    renderResults();
+}
+
+/* ---------- History ---------- */
+async function loadBets() {
+    if (!APP.user) return;
+    try {
+        const res = await fetch('api/bets.php');
+        const j = await res.json();
+        if (j.success) {
+            APP.bets = j.data.bets;
+            APP.totals = j.data.totals;
+            renderHistory();
+        }
+    } catch (e) { /* non-fatal */ }
+}
+
+function renderHistory() {
+    const t = APP.totals;
+    if (t) {
+        document.getElementById('historyTotals').innerHTML = `
+            <div class="stat-item"><div class="stat-value" style="color:var(--text)">${t.bets_total}</div><div class="stat-label">Bets</div></div>
+            <div class="stat-item"><div class="stat-value" style="color:var(--text)">GHS ${fmt(t.stake_total)}</div><div class="stat-label">Staked</div></div>
+            <div class="stat-item"><div class="stat-value" style="color:var(--secondary)">GHS ${fmt(t.return_total)}</div><div class="stat-label">Returned</div></div>
+            <div class="stat-item"><div class="stat-value" style="color:${t.profit_total >= 0 ? 'var(--primary)' : 'var(--error)'}">GHS ${fmt(t.profit_total)}</div><div class="stat-label">Profit</div></div>
+            <div class="stat-item"><div class="stat-value" style="color:var(--blue)">${(t.hit_rate * 100).toFixed(0)}%</div><div class="stat-label">Hit rate (settled)</div></div>
+        `;
+    }
+    const list = document.getElementById('betsList');
+    let bets = APP.bets || [];
+    if (APP.betFilter === 'settled') bets = bets.filter(b => b.result !== 'pending');
+    if (APP.betFilter === 'unsettled') bets = bets.filter(b => b.result === 'pending');
+
+    if (bets.length === 0) {
+        list.innerHTML = '<div class="empty-state"><p>No bets here yet. Add the bets you placed from these picks.</p></div>';
+        return;
+    }
+    list.innerHTML = bets.map(b => `
+        <div class="bet-row">
+            <div>
+                <div style="font-weight:600">${b.placed_at}</div>
+                <div class="muted" style="font-size:12px">${b.bet_type.toUpperCase()}${b.note ? ' · ' + esc(b.note) : ''}</div>
+            </div>
+            <div class="text-center"><div style="font-weight:700">GHS ${fmt(b.stake)}</div><div class="muted" style="font-size:11px">stake</div></div>
+            <div class="text-center"><div style="font-weight:700">${Number(b.odds).toFixed(2)}</div><div class="muted" style="font-size:11px">odds</div></div>
+            <div class="text-center"><div style="font-weight:700;color:var(--secondary)">GHS ${fmt(b.potential_return)}</div><div class="muted" style="font-size:11px">return</div></div>
+            <div>
+                <span class="result-chip res-${b.result}">${b.result === 'won' ? 'WON' : b.result === 'lost' ? 'LOST' : 'UNSETTLED'}</span>
+            </div>
+            <div class="flex" style="gap:4px">
+                ${b.result === 'pending'
+                    ? `<button class="btn btn-sm btn-ghost" onclick="setBetResult(${b.id}, 'won')">Win</button>
+                       <button class="btn btn-sm btn-ghost" onclick="setBetResult(${b.id}, 'lost')">Lose</button>`
+                    : `<button class="btn btn-sm btn-ghost" onclick="setBetResult(${b.id}, 'pending')">Reset</button>`}
+            </div>
+            <button class="btn btn-sm btn-ghost" style="color:var(--error)" onclick="deleteBet(${b.id})">✕</button>
+        </div>
+    `).join('');
+}
+
+async function addBet() {
+    const payload = {
+        action: 'add',
+        bet_type: document.getElementById('betType').value,
+        stake: parseFloat(document.getElementById('betStake').value),
+        odds: parseFloat(document.getElementById('betOdds').value),
+        result: document.getElementById('betResult').value,
+        placed_at: document.getElementById('betDate').value || undefined
+    };
+    if (!(payload.stake > 0) || !(payload.odds >= 1.01)) { toast('Enter a stake and odds ≥ 1.01', true); return; }
+    const res = await fetch('api/bets.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const j = await res.json();
+    if (j.success) {
+        document.getElementById('betStake').value = '';
+        document.getElementById('betOdds').value = '';
+        toast('Bet added to track record');
+        await loadBets();
+    } else toast(j.error, true);
+}
+
+async function setBetResult(id, result) {
+    await fetch('api/bets.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-result', id, result }) });
+    await loadBets();
+}
+
+async function deleteBet(id) {
+    await fetch('api/bets.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id }) });
+    await loadBets();
+}
+
+function setBetFilter(filter, btn) {
+    APP.betFilter = filter;
+    document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b === btn));
+    renderHistory();
+}
+
+/* ---------- Sign in ---------- */
+function showAuthModal() {
+    showModal('authModalBackdrop');
+}
+
+async function signOut() {
+    await fetch('api/user.php', { method: 'DELETE' });
+    APP.user = null;
+    APP.analysis = null;
+    APP.analysisFixtures = [];
+    renderAll();
+    toast('Signed out successfully.');
+}
+
+async function signIn() {
+    const phone = document.getElementById('signupPhone').value.trim();
+    if (!/^0\d{9}$/.test(phone)) { toast('Enter a valid Ghana mobile-money number (e.g. 0241234567)', true); return; }
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    if (APP.authMode === 'signup') {
+        if (!name) { toast('Please enter your full name', true); return; }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Please enter a valid email address', true); return; }
+    }
+    const res = await fetch('api/user.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, name, email, mode: APP.authMode })
+    });
+    const j = await res.json();
+    if (j.success) {
+        APP.user = j.data.user;
+        closeModal('authModalBackdrop');
+        renderAll();
+        loadBets();
+        toast(APP.authMode === 'signup' ? 'Welcome to Mobifooty, ' + (APP.user.name || APP.user.phone) + '!' : 'Signed in as ' + APP.user.phone);
+    } else toast(j.error, true);
+}
+
+/* ---------- Navigation ---------- */
+function goHome() {
+    if (APP.user) {
+        switchTab('dashboard');
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function renderSignupNetwork() {
+    const n = detectNetwork(document.getElementById('signupPhone').value);
+    document.getElementById('signupNetwork').innerHTML = n
+        ? `<span class="network-badge ${n.key}">${n.icon} ${n.label} detected</span>`
+        : '';
+}
+function renderPayNetwork() {
+    const n = detectNetwork(document.getElementById('payPhone').value);
+    document.getElementById('payNetwork').innerHTML = n
+        ? `<span class="network-badge ${n.key}">${n.icon} ${n.label} detected</span>`
+        : '<span class="muted" style="font-size:12px">MTN MoMo · Telecel Cash · AirtelTigo Money supported — auto-detected from prefix</span>';
+}
+
+/* ---------- Payment ---------- */
+function openPayment(tierKey) {
+    if (!APP.user) { switchTab('dashboard'); toast('Sign in with your mobile-money number first', true); return; }
+    const tier = APP.config.tiers[tierKey];
+    APP.paymentTier = tierKey;
+    document.getElementById('payTierName').textContent = tier.name;
+    document.getElementById('payTierPrice').textContent = 'GHS ' + tier.price_ghs;
+    document.getElementById('payTierFeatures').textContent = tier.features.slice(0, 2).join(' · ');
+    document.getElementById('payPhone').value = APP.user.phone;
+    renderPayNetwork();
+    resetPaymentUI();
+    showModal('paymentModalBackdrop');
+}
+
+function resetPaymentUI() {
+    ['paymentStepTier', 'paymentStepPending', 'paymentStepSuccess', 'paymentStepFailed'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+    });
+    document.getElementById('paymentStepTier').style.display = 'block';
+    document.getElementById('payBtn').disabled = false;
+    if (APP.pendingTimer) { clearInterval(APP.pendingTimer); APP.pendingTimer = null; }
+}
+
+async function startPayment() {
+    const tierKey = APP.paymentTier;
+    const phone = document.getElementById('payPhone').value.trim();
+    if (!/^0\d{9}$/.test(phone)) { toast('Enter a valid Ghana mobile-money number', true); return; }
+    const btn = document.getElementById('payBtn');
+    btn.disabled = true; btn.textContent = 'Initializing secure payment…';
+    try {
+        const res = await fetch('api/payment.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tier: tierKey, phone })
+        });
+        const j = await res.json();
+        if (!j.success) { btn.disabled = false; btn.textContent = '💳 Pay now'; toast(j.error, true); return; }
+        APP.paymentRef = j.data.reference;
+
+        if (j.data.access_code && APP.config.payment.public_key && typeof PaystackPop !== 'undefined') {
+            const tierObj = APP.config.tiers[tierKey];
+            let handler = PaystackPop.setup({
+                key: APP.config.payment.public_key,
+                email: APP.user.email || (APP.user.phone + '@mobifooty.com'),
+                amount: tierObj.price_ghs * 100,
+                currency: 'GHS',
+                access_code: j.data.access_code,
+                onClose: function() {
+                    btn.disabled = false; btn.textContent = '💳 Pay now';
+                    toast('Payment window closed. You can try again when ready.');
+                },
+                callback: function(response) {
+                    enterPendingState(j.data); // Start polling to verify
+                }
+            });
+            handler.openIframe();
+            return;
+        } else if (j.data.authorization_url) {
+            // Fallback: if config is stale or popup script blocked, redirect directly
+            window.location.href = j.data.authorization_url;
+            return;
+        }
+
+        enterPendingState(j.data);
+    } catch (e) {
+        btn.disabled = false; btn.textContent = '💳 Pay now';
+        toast('Payment could not be initiated — check that the API is reachable', true);
+    }
+}
+
+function enterPendingState(d) {
+    ['paymentStepTier', 'paymentStepSuccess', 'paymentStepFailed'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById('paymentStepPending').style.display = 'block';
+    document.getElementById('payPendingMsg').textContent = d.message || 'A payment prompt was sent to your phone.';
+    document.getElementById('payPendingRef').textContent = `Ref: ${d.reference} · ${d.network ? networkLabel(d.network) : ''}`;
+
+    if (d.require_otp) {
+        document.getElementById('payOtpContainer').style.display = 'block';
+        document.getElementById('payPendingHelp').style.display = 'none';
+        document.getElementById('payPendingFallback').style.display = 'none';
+    } else {
+        document.getElementById('payOtpContainer').style.display = 'none';
+        document.getElementById('payPendingHelp').style.display = 'block';
+        document.getElementById('payPendingFallback').style.display = 'block';
+    }
+
+    const bar = document.getElementById('payPendingBar');
+    let ticks = 0;
+    const started = Date.now();
+    
+    // Clear any existing timer
+    if (APP.pendingTimer) clearInterval(APP.pendingTimer);
+    APP.pendingTimer = setInterval(async () => {
+        ticks++;
+        const elapsed = Math.min(1, (Date.now() - started) / 150000);
+        bar.style.width = Math.round(elapsed * 100) + '%';
+        try {
+            const res = await fetch('api/payment.php?reference=' + encodeURIComponent(APP.paymentRef));
+            const j = await res.json();
+            if (j.success) {
+                if (j.data.status === 'success') {
+                    clearInterval(APP.pendingTimer); APP.pendingTimer = null;
+                    await confirmSandboxWebhook(); // no-op in live mode
+                    await refreshUser();
+                    enterSuccessState(j.data);
+                    return;
+                }
+                if (j.data.status === 'failed') {
+                    clearInterval(APP.pendingTimer); APP.pendingTimer = null;
+                    enterFailedState();
+                    return;
+                }
+            }
+        } catch (e) { /* keep polling */ }
+        if (ticks >= 45) {
+            clearInterval(APP.pendingTimer); APP.pendingTimer = null;
+            toast('Still waiting for the provider to confirm. Your tier unlocks automatically once confirmed — check back shortly.', true);
+        }
+    }, 4000);
+}
+
+async function submitOtp() {
+    const otp = document.getElementById('payOtpInput').value.trim();
+    if (!otp) return;
+    const btn = document.getElementById('payOtpBtn');
+    btn.disabled = true; btn.textContent = 'Verifying...';
+    try {
+        const res = await fetch('api/payment.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'submit_otp', reference: APP.paymentRef, otp: otp })
+        });
+        const j = await res.json();
+        btn.disabled = false; btn.textContent = 'Verify';
+        if (!j.success) {
+            toast(j.error, true);
+            return;
+        }
+        document.getElementById('payPendingMsg').textContent = j.data.message;
+        document.getElementById('payOtpInput').value = '';
+        if (j.data.status === 'success' || j.data.paystack_status === 'success') {
+            document.getElementById('payOtpContainer').style.display = 'none';
+        }
+    } catch (e) {
+        btn.disabled = false; btn.textContent = 'Verify';
+        toast('Network error while submitting OTP', true);
+    }
+}
+
+/* In sandbox mode the dev webhook fires the exact same unlock path a
+   real Paystack webhook would. No-op when live. The dev secret is only
+   exposed to the client while PAYSTACK_SANDBOX=true. */
+async function confirmSandboxWebhook() {
+    if (!(APP.config.payment.sandbox)) return;
+    const secret = APP.config.payment.dev_webhook_secret;
+    if (!secret) return;
+    await fetch('api/webhook.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Dev-Webhook-Secret': secret },
+        body: JSON.stringify({
+            event: 'charge.success',
+            data: { reference: APP.paymentRef, status: 'success', gateway_response: 'Sandbox simulated approval' }
+        })
+    });
+}
+
+function enterSuccessState(d) {
+    ['paymentStepTier', 'paymentStepPending', 'paymentStepFailed'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById('paymentStepSuccess').style.display = 'block';
+    document.getElementById('paySuccessMsg').textContent = `${APP.user.tier ? APP.user.tier.name : 'Your'} tier is now active. Ref ${d.reference} confirmed by the provider.`;
+}
+
+function enterFailedState() {
+    ['paymentStepTier', 'paymentStepPending', 'paymentStepSuccess'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById('paymentStepFailed').style.display = 'block';
+}
+
+function closePaymentAndGo(tab) {
+    closeModal('paymentModalBackdrop');
+    switchTab(tab);
+}
+
+/* ---------- Self-exclusion ---------- */
+function openSelfExclude() { showModal('selfExcludeBackdrop'); }
+async function doSelfExclude() {
+    const days = document.getElementById('selfExcludeDays').value;
+    const res = await fetch('api/user.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'self-exclude', days: parseInt(days, 10) })
+    });
+    const j = await res.json();
+    if (j.success) {
+        closeModal('selfExcludeBackdrop');
+        await refreshUser();
+        toast('Self-exclusion active. Purchases and analyses are paused.');
+    } else toast(j.error, true);
+}
+
+/* ---------- Upload + analysis ---------- */
+let selectedFile = null;
+let analysisRunning = false;
+
+function setupDropzone() {
+    const dz = document.getElementById('dropzone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+    dz.addEventListener('drop', e => {
+        e.preventDefault(); dz.classList.remove('drag');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    document.getElementById('fileInput').addEventListener('change', e => {
+        if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+}
+
+function handleFile(file) {
+    if (!/image\/(png|jpeg|webp)/.test(file.type)) { toast('PNG or JPG screenshots only', true); return; }
+    if (file.size > 8 * 1024 * 1024) { toast('Screenshot too large (max 8 MB)', true); return; }
+    selectedFile = file;
+    const preview = document.getElementById('uploadPreview');
+    preview.style.display = 'block';
+    preview.innerHTML = `
+        <img src="${URL.createObjectURL(file)}" style="max-height:260px;max-width:100%;border-radius:10px;border:1px solid var(--border)">
+        <div class="muted" style="font-size:12px;margin-top:6px">${file.name} · ${(file.size / 1024).toFixed(0)} KB</div>`;
+    document.getElementById('uploadActions').style.display = 'flex';
+}
+
+function resetUpload() {
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('uploadPreview').style.display = 'none';
+    document.getElementById('uploadPreview').innerHTML = '';
+    document.getElementById('uploadActions').style.display = 'none';
+}
+
+async function runAnalysis() {
+    if (!selectedFile || analysisRunning) return;
+    analysisRunning = true;
+    document.getElementById('uploadCard').style.display = 'none';
+    document.getElementById('analysisCard').style.display = 'block';
+    startProgressUI();
+
+    // "Don't leave this page" warning while the AI analysis runs.
+    window.onbeforeunload = () => 'AI analysis is still running — leaving now may lose your results.';
+
+    try {
+        const fd = new FormData();
+        fd.append('file', selectedFile);
+        const res = await fetch('api/analysis.php', { method: 'POST', body: fd });
+        const j = await res.json();
+        if (!j.success) {
+            window.onbeforeunload = null;
+            analysisRunning = false;
+            failProgressUI(j.error || 'Analysis failed');
+            return;
+        }
+        APP.analysis = {
+            analysis_id: j.data.analysis_id,
+            league: j.data.league,
+            fixtures: j.data.fixtures,
+            simulation: j.data.simulation,
+            provider: j.data.provider,
+            analyses_left_today: j.data.analyses_left_today
+        };
+        buildAnalysisFixtures();
+        await finishProgressUI();
+        window.onbeforeunload = null;
+        analysisRunning = false;
+        APP.user.analyses_left_today = j.data.analyses_left_today;
+        renderUpload();
+        switchTab('results');
+    } catch (e) {
+        window.onbeforeunload = null;
+        analysisRunning = false;
+        failProgressUI('Could not reach the analysis service. Is the API up?');
+    }
+}
+
+/* Two staged animations: "Reading Screenshot…" (0→60%) then
+   "AI ANALYSIS RUNNING" (60→100%) with the don't-leave warning. */
+function startProgressUI() {
+    document.getElementById('analysisCard').style.display = 'block';
+    document.getElementById('analysisStage').textContent = 'Reading Screenshot…';
+    document.getElementById('analysisStage').className = 'stage';
+    document.getElementById('analysisSub').textContent = 'Extracting league, fixtures and bookmaker odds';
+    document.getElementById('analysisPct').textContent = '0%';
+    document.getElementById('analysisBar').style.width = '0%';
+    document.getElementById('analysisLog').textContent = '';
+    animateProgress(0, 60, 1400, () => {
+        document.getElementById('analysisStage').textContent = '⚠ AI ANALYSIS RUNNING';
+        document.getElementById('analysisStage').className = 'stage warn';
+        document.getElementById('analysisSub').textContent = 'Do not leave this page — results are computed while you watch';
+        document.getElementById('analysisLog').textContent = '> vision engine: reading fixtures…';
+        animateProgress(60, 96, 2200, () => {
+            document.getElementById('analysisLog').textContent = '> poisson engine: computing model probabilities…';
+        });
+    });
+}
+
+function animateProgress(from, to, duration, onDone) {
+    const start = performance.now();
+    const step = now => {
+        const t = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - t, 2);
+        const val = Math.round(from + (to - from) * eased);
+        document.getElementById('analysisPct').textContent = val + '%';
+        document.getElementById('analysisBar').style.width = val + '%';
+        if (t < 1) requestAnimationFrame(step);
+        else if (onDone) onDone();
+    };
+    requestAnimationFrame(step);
+}
+
+async function finishProgressUI() {
+    document.getElementById('analysisPct').textContent = '100%';
+    document.getElementById('analysisBar').style.width = '100%';
+    document.getElementById('analysisStage').textContent = 'Analysis complete ✓';
+    document.getElementById('analysisStage').className = 'stage';
+    document.getElementById('analysisSub').textContent = 'Fixtures parsed and model probabilities computed';
+    document.getElementById('analysisLog').textContent = '> done.';
+    await sleep(500);
+    document.getElementById('analysisCard').style.display = 'none';
+    document.getElementById('uploadCard').style.display = 'block';
+}
+
+function failProgressUI(msg) {
+    document.getElementById('analysisStage').textContent = 'Analysis failed';
+    document.getElementById('analysisStage').className = 'stage';
+    document.getElementById('analysisStage').style.color = 'var(--error)';
+    document.getElementById('analysisSub').textContent = msg;
+    document.getElementById('analysisLog').textContent = '> error: ' + msg;
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary mt';
+    btn.textContent = 'Try again';
+    btn.onclick = () => {
+        document.getElementById('analysisCard').style.display = 'none';
+        document.getElementById('uploadCard').style.display = 'block';
+        resetUpload();
+    };
+    document.getElementById('analysisSub').appendChild(document.createElement('br'));
+    document.getElementById('analysisSub').appendChild(btn);
+}
+
+/* ---------- Refresh + helpers ---------- */
+async function refreshUser() {
+    try {
+        const res = await fetch('api/user.php');
+        const j = await res.json();
+        if (j.success && j.data.user) APP.user = j.data.user;
+        renderAll();
+    } catch (e) { /* non-fatal */ }
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'history') loadBets();
+    if (tab === 'results') renderResults();
+    if (tab === 'upload') renderUpload();
+}
+
+function detectNetwork(phone) {
+    const p = (phone || '').replace(/\D+/g, '');
+    if (p.indexOf('233') === 0 && p.length === 12) return null; // let server normalise; treat as unknown locally
+    if (p.length !== 10 || p[0] !== '0') return null;
+    for (const n of APP.config.networks) {
+        if (n.prefixes.some(pre => p.indexOf(pre) === 0)) return { key: n.key, label: n.label, icon: n.key === 'mtn' ? '🟡' : n.key === 'vod' ? '🔴' : '🟠' };
+    }
+    return null;
+}
+
+function networkLabel(key) {
+    const n = (APP.config.networks || []).find(x => x.key === key);
+    return n ? n.label : key;
+}
+
+function tierValidity(tier) {
+    if (tier.valid_days === 0) return 'never expires';
+    if (tier.valid_days === 1) return '24-hour access';
+    return tier.valid_days + '-day access';
+}
+
+function fmt(n) {
+    return Number(n || 0).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showModal(id) { document.getElementById(id).classList.add('show'); }
+
+function showAuthModal(mode = 'login') {
+    APP.authMode = mode;
+    updateAuthUI();
+    document.getElementById('authModalBackdrop').classList.add('show');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function toggleAuthMode() {
+    APP.authMode = APP.authMode === 'login' ? 'signup' : 'login';
+    updateAuthUI();
+}
+
+function updateAuthUI() {
+    const isLogin = APP.authMode === 'login';
+    document.getElementById('authTitle').textContent = isLogin ? 'Sign In' : 'Sign Up';
+    document.getElementById('authSubtitle').textContent = isLogin 
+        ? 'Welcome back! Enter your mobile-money number to continue.' 
+        : 'Create an account with your mobile-money number to start analyzing.';
+    document.getElementById('authNameGroup').style.display = isLogin ? 'none' : 'block';
+    document.getElementById('authEmailGroup').style.display = isLogin ? 'none' : 'block';
+    document.getElementById('authBtn').textContent = isLogin ? 'Sign In' : 'Sign Up';
+    document.getElementById('authToggleText').textContent = isLogin ? "Don't have an account?" : "Already have an account?";
+    document.getElementById('authToggleLink').textContent = isLogin ? "Sign Up" : "Sign In";
+}
+
+let toastTimer = null;
+function toast(msg, isErr) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isErr ? ' err' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = 'toast', 3500);
+}
+
+/* ---------- Navigation wiring + boot ---------- */
+document.getElementById('navTabs').addEventListener('click', e => {
+    const btn = e.target.closest('.nav-tab');
+    if (btn) switchTab(btn.dataset.tab);
+});
+document.getElementById('paymentModalBackdrop').addEventListener('click', e => {
+    if (e.target.id === 'paymentModalBackdrop' && !APP.pendingTimer) closeModal('paymentModalBackdrop');
+});
+document.getElementById('selfExcludeBackdrop').addEventListener('click', e => {
+    if (e.target.id === 'selfExcludeBackdrop') closeModal('selfExcludeBackdrop');
+});
+document.getElementById('betDate').value = new Date().toISOString().slice(0, 10);
+
+init();
+</script>
+</body>
+</html>
